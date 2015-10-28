@@ -8,7 +8,8 @@ allBoards = []
 
 def main():
 	board = Board()
-	humanPlayers = []
+	board.boardFromFile("game1.txt")
+	humanPlayers = [1,-1]
 	while(not board.over()):
 		moves = board.moves()
 		board.show()
@@ -38,61 +39,72 @@ def getMoveFromHuman(board,moves):
 			moveNum = -1
 	return moveNum
 	
-startDepth = 4
+finishedSearch = False
+startDepth = 3
+totalTime = 4
+end_time = 0
+reachedEnd = False
 def getMoveFromComp(board,moves):
 	depth =  startDepth if board.player == -1 else startDepth
-	alpha,beta = -inf,inf
 	board.show(moves)
 	board.printMoves(moves)
 	boardPointer = 0
-	start_time = time.time()
-	val,moveNum = alphabeta(board, depth, alpha,beta, True)
-	print("--- %s seconds to depth %s ---" % ((time.time() - start_time),depth))
-	print("alphabeta: " , val,moveNum)
-	return moveNum #random.randint(0,len(moves)-1)
+	global end_time, finishedSearch,reachedEnd
+	finishedSearch = False
+	reachedEnd = False
+	round_start_time = time.time()
+	end_time = round_start_time + totalTime - .01
+	
+	realMoveNum = 0
+	val = 0
+	depth = 2
+	while((not finishedSearch) and not reachedEnd):
+		reachedEnd = True
+		depth += 1
+		alpha,beta = -inf,inf
+		val,moveNum = alphabeta(board, depth, alpha,beta, True)
+		if(finishedSearch):
+			realMoveNum = moveNum
+	print("--- %s seconds to depth %s ---" % ((time.time() - round_start_time),depth-1))
+	print("alphabeta: " , val,realMoveNum)
+	return realMoveNum #random.randint(0,len(moves)-1)
 
 	
 def alphabeta(board, depth, alpha, beta, maxPlayer):
+	if(time.time() > end_time):
+		global finishedSearch
+		finishedSearch = True	
+		return 0,0
+	
 	remDepth = startDepth - depth
 	if(depth == 0 or board.over()):
 		h = board.heuristic()
-		print("\t"*remDepth + "heuristic: %s" %h)
-		print(board.show())
+		#print("\t"*remDepth + "heuristic: %s" %h)
+		#print(board.show())
 		return h,-1
 		
 	moves = board.moves()
 	moveNum = 0
-	if maxPlayer:
-		val = -inf
-		for i,move in enumerate(moves):
-			print("\t"*remDepth,"val:", val,"player:", board.player, "move:", move, "alpha:", alpha,"beta:",beta)
-			#print(board.show())
-			childBoard = board.child(move)
-			temp = alphabeta(childBoard,depth-1,alpha,beta,False)[0]
-			if(temp>val):
-				val = temp
-				moveNum = i
-			alpha = max(alpha,val)
-			if beta <= alpha:
-				break
-	else: #min
-		val = inf
-		for i,move in enumerate(moves):
-			print("\t"*remDepth,"val:", val,"player:", board.player, "move:", move, "alpha:", alpha,"beta:",beta)
-			#print(board.show())
-			childBoard = board.child(move)
-			temp = alphabeta(childBoard,depth-1,alpha,beta,True)[0]
-			if(temp<val):
-				val = temp
-				moveNum = i
-			beta = min(beta,val)
-			if(beta <= alpha):
-				break
-
+	val = -inf if maxPlayer else inf
 	
+	for i,move in enumerate(moves):
+		#print("\t"*remDepth,"val:", val,"player:", board.player, "move:", move, "alpha:", alpha,"beta:",beta, "moveNum:", moveNum,"i:",i)
+		#print(board.show())
+		childBoard = board.child(move)
+		temp = alphabeta(childBoard,depth-1,alpha,beta,not maxPlayer)[0]
+		if((maxPlayer and temp>val) or (not maxPlayer and temp<val)):
+			val = temp
+			moveNum = i
+		if(maxPlayer):
+			alpha = max(alpha,val)
+		else:
+			beta = min(beta,val)
+		if beta <= alpha:
+			break #prun
+			
+	#print("\t"*remDepth,"val:", val,"player:", board.player, "move:", move, "alpha:", alpha,"beta:",beta, "moveNum:",moveNum)
 	return val,moveNum
 			
-
 	
 	
 class Board:
@@ -103,29 +115,24 @@ class Board:
 			if(a == b and a == 0):
 				continue
 			directions.append((a,b))		
-	cornerVal = 5
+
+	corners = [(0,0),(0,7),(7,0),(7,7)]
+	cornerVal = 8
+	sideVal = 3
+	subcornerVal = -5
+	nextToCornerVal = -3
 	hBoard = [
-		[cornerVal,-3,2,2,2,2,-3,cornerVal],
-		[-3,-4,-1,-1,-1,-1,-4,-3],
-		[2,-1,1,0,0,1,-1,2],
-		[2,-1,0,1,1,0,-1,2],
-		[2,-1,0,1,1,0,-1,2],
-		[2,-1,1,0,0,1,-1,2],
-		[-3,-4,-1,-1,-1,-1,-4,-3],
-		[cornerVal,-3,2,2,2,2,-3,cornerVal]
+		[cornerVal,nextToCornerVal,sideVal,sideVal,sideVal,sideVal,nextToCornerVal,cornerVal],
+		[nextToCornerVal,subcornerVal,-1,-1,-1,-1,subcornerVal,nextToCornerVal],
+		[sideVal,-1,1,0,0,1,-1,sideVal],
+		[sideVal,-1,0,1,1,0,-1,sideVal],
+		[sideVal,-1,0,1,1,0,-1,sideVal],
+		[sideVal,-1,1,0,0,1,-1,sideVal],
+		[nextToCornerVal,subcornerVal,-1,-1,-1,-1,subcornerVal,nextToCornerVal],
+		[cornerVal,nextToCornerVal,sideVal,sideVal,sideVal,sideVal,nextToCornerVal,cornerVal]
 	]
 	
-	cornerVal = 5
-	hBoardOld = [
-		[cornerVal,-3,2,2,2,2,-3,cornerVal],
-		[-3,-4,-1,-1,-1,-1,-4,-3],
-		[2,-1,1,0,0,1,-1,2],
-		[2,-1,0,1,1,0,-1,2],
-		[2,-1,0,1,1,0,-1,2],
-		[2,-1,1,0,0,1,-1,2],
-		[-3,-4,-1,-1,-1,-1,-4,-3],
-		[cornerVal,-3,2,2,2,2,-3,cornerVal]
-	]
+
 			
 	def __init__(self):
 		self.b = [[0]*Board.N for _ in range(Board.N)]
@@ -134,6 +141,17 @@ class Board:
 		self.skippedLastTurn = False
 		self.player = 1
 			
+	def boardFromFile(self,filename):
+		with open(filename) as f:
+			contents = f.readlines()
+		self.player = int(contents[0])
+		contents = contents[1:]
+		for line in contents:
+			words = line.split(",")
+			self.b[int(words[0])][int(words[1])] = int(words[2])
+		self.show()
+		
+		
 	def score(self):
 		sum = 0
 		for row in self.b:
@@ -144,43 +162,33 @@ class Board:
 	def sym(self,player = 0):
 		if(player == 0):
 			player = self.player
-		return '@' if player == -1 else '#'
+		return '\33[1;36m@\33[m' if player == -1 else '\33[1;32m#\33[m'
 		
 	def winnner(self):
 		return '@' if self.score() < 0 else '#'
-			
 		
-	def heuristic(self):
-		if self.over():
-			#print("over!!")
-			sum = self.score()
-			winning = 1000 if (sum > 0) else -1000
-			winning += sum
-			winning = self.player*winning
-			return winning
-		
+	def useHboard(self):
 		sum = 0
-		"""
 		for y,row in enumerate(self.b):
 			for x,val in enumerate(row):
 				sum += Board.hBoard[y][x]*val
-		"""	
-		corners = [(0,0),(0,7),(7,0),(7,7)]
+		return sum
 		
-		
-		#sides*3 with corners *6
-		sidePoints = 50
+	sidePoints = 4
+	def roughCorners(self):
+		sum = 0
 		for i in range(Board.N):
-			sum += sidePoints*(self.b[i][0] + self.b[i][7] + self.b[0][i] + self.b[7][i])
-		for corner in corners:
+			sum += Board.sidePoints*(self.b[i][0] + self.b[i][7] + self.b[0][i] + self.b[7][i])
+		for corner in Board.corners:
 			y,x = corner
-			sum += self.b[y][x]*sidePoints*4
+			sum += self.b[y][x]*Board.sidePoints*4
+		return sum
 		
-		
-		badPoints = round(sidePoints*1.5)
+	def badSubCorners(self):
 		#subcorners bad
-		
-		for corner in corners:
+		sum = 0
+		badPoints = round(Board.sidePoints*1.5)
+		for corner in Board.corners:
 			y,x = corner
 			if(self.b[y][x] != 0):
 				continue
@@ -188,12 +196,29 @@ class Board:
 				a,b = y+dir[0],x+dir[1]
 				if(a<0 or b<0 or b>7 or a>7):continue
 				sum -= badPoints*self.b[a][b] #it's bad to have things next to 
-					#sum -= 5*(self.b[1][1] + self.b[1][6]+ self.b[6][1]+ self.b[6][6])
+		return sum
 		
-		ratio = self.spots/64
+	def heuristic(self):
+		if self.over():
+			#print("over!!")
+			sum = self.score()
+			sum  += 1000 if (sum > 0) else -1000
+			return self.player*sum
 		
-		sum = self.score()*ratio + (1-ratio)*sum
-			
+		global reachedEnd
+		reachedEnd = False
+		
+		
+		sum = 0
+		sum += self.useHboard()
+		#sum += self.roughCorners()
+		sum += self.badSubCorners()
+		
+		ratio = self.spots/64 # out of 64 games.. it leans to end of game is just based on the total score
+		
+		preSum = sum
+		sum = self.score()*2*ratio + (1-ratio)*sum
+		
 		return sum*self.player
 			
 	
@@ -223,25 +248,19 @@ class Board:
 		self.b[y][x] = self.player
 		self.spots += 1
 		for dir in Board.directions:
-			#print("dir",dir)
-			try:
-				a,b = y+dir[0],x+dir[1]
-				#print("\ta,b - in try", a,b)
-				if(a<0 or b<0):continue
-				while(self.b[a][b] == -self.player):
-					#print("\t\ta,b - in while1", a,b)
-					a,b = a+dir[0],b+dir[1]
-					if(a<0 or b<0):break
-					if(self.b[a][b] == self.player):
-						while(a != y or b!=x):#fill in those spots
-							#print("\t\t\ta,b - in while2", a,b)
-							a,b = a-dir[0],b-dir[1]
-							if(a<0 or b<0):break
-							self.b[a][b] = self.player
-						break
-			except:#went off the edge of the board
-				pass
-				#print("EXCEPT")
+			a,b = y+dir[0],x+dir[1]
+			#print("\ta,b - in try", a,b)
+			if(a<0 or b<0 or a>7 or b>7):continue
+			while(self.b[a][b] == -self.player):
+				a,b = a+dir[0],b+dir[1]
+				if(a<0 or b<0):break
+				if(self.b[a][b] == self.player):
+					while(a != y or b!=x):#fill in those spots
+						#print("\t\t\ta,b - in while2", a,b)
+						a,b = a-dir[0],b-dir[1]
+						if(a<0 or b<0 or a>7 or b>7):break
+						self.b[a][b] = self.player
+
 		self.player = -self.player
 		return
 		
@@ -297,19 +316,17 @@ class Board:
 		if(self.b[y][x] != 0):
 			return False
 		for dir in Board.directions:
-			try:
-				a,b = y+dir[0],x+dir[1]
-				if(a<0 or b<0):continue
-				if(self.b[a][b] == -self.player):
-					#there's the enemy peice next to an empty spot
-					while(True):					
-						a,b = a+dir[0],b+dir[1]
-						if(a<0 or b<0):break
-						if(self.b[a][b] == self.player):
-							return True
-			except:#went off the edge of the board
-				pass
-				
+			a,b = y+dir[0],x+dir[1]
+			if(a<0 or b<0 or a>7 or b>7):continue
+			if(self.b[a][b] == -self.player):
+				#there's the enemy peice next to an empty spot
+				while(True):					
+					a,b = a+dir[0],b+dir[1]
+					if(a<0 or b<0 or a>7 or b>7):break
+					if(self.b[a][b] == 0): break
+					if(self.b[a][b] == self.player):
+						return True	
+					
 				
 		return False
 	def moves(self):
@@ -327,8 +344,8 @@ class Board:
 		for i,move in enumerate(moves):
 			print("%s.%s" %(i,move))
 
-allBoards = [ Board() for i in range(boardCount)]			
-print("made boards")
+#allBoards = [ Board() for i in range(boardCount)]			
+#print("made boards")
 	
 if __name__ == "__main__":
 	start_time = time.time()
