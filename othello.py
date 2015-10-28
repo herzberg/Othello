@@ -253,14 +253,14 @@ class Board:
 			if(a<0 or b<0 or a>7 or b>7):continue
 			while(self.b[a][b] == -self.player):
 				a,b = a+dir[0],b+dir[1]
-				if(a<0 or b<0):break
+				if(a<0 or b<0 or a>7 or b>7):break
 				if(self.b[a][b] == self.player):
 					while(a != y or b!=x):#fill in those spots
 						#print("\t\t\ta,b - in while2", a,b)
 						a,b = a-dir[0],b-dir[1]
 						if(a<0 or b<0 or a>7 or b>7):break
 						self.b[a][b] = self.player
-
+					break
 		self.player = -self.player
 		return
 		
